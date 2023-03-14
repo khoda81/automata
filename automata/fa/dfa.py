@@ -2,11 +2,12 @@
 """Classes and methods for working with deterministic finite automata."""
 
 from collections import defaultdict, deque
+from functools import cache
 from itertools import chain, count
 from random import Random
+from typing import Iterable
 
 import networkx as nx
-from pydot import Dot, Edge, Node
 
 import automata.base.exceptions as exceptions
 import automata.fa.fa as fa
@@ -1279,43 +1280,55 @@ class DFA(fa.FA):
             initial_state=dfa_initial_state,
             final_states=dfa_final_states)
 
-    def show_diagram(self, path=None):
+    def to_graph(self, engine='dot', rankdir='LR'):
         """
             Creates the graph associated with this DFA
         """
-        # Nodes are set of states
+        import graphviz
+        graph = graphviz.Digraph(engine=engine)
+        graph.attr(rankdir=rankdir)
 
-        graph = Dot(graph_type='digraph', rankdir='LR')
-        nodes = {}
-        for state in self.states:
-            if state == self.initial_state:
-                # color start state with green
-                if state in self.final_states:
-                    initial_state_node = Node(
-                        state,
-                        style='filled',
-                        peripheries=2,
-                        fillcolor='#66cc33')
-                else:
-                    initial_state_node = Node(
-                        state, style='filled', fillcolor='#66cc33')
-                nodes[state] = initial_state_node
-                graph.add_node(initial_state_node)
-            else:
-                if state in self.final_states:
-                    state_node = Node(state, peripheries=2)
-                else:
-                    state_node = Node(state)
-                nodes[state] = state_node
-                graph.add_node(state_node)
-        # adding edges
-        for from_state, lookup in self.transitions.items():
-            for to_label, to_state in lookup.items():
-                graph.add_edge(Edge(
-                    nodes[from_state],
-                    nodes[to_state],
-                    label=to_label
-                ))
-        if path:
-            graph.write_png(path)
+        def get_name(state):
+            if isinstance(state, str):
+                if state == "":
+                    return "λ"
+
+                return state
+
+            if isinstance(state, Iterable):
+                inner = ", ".join(map(get_name, sorted(state)))
+                if isinstance(state, (set, frozenset)):
+                    return '{' + inner + '}'
+
+                return '[' + inner + ']'
+
+            return repr(state)
+
+        initial_node = get_name(self.initial_state)
+        null_node = ""
+        graph.node(null_node, shape='none', width='0', height='0')
+        graph.edge(null_node, initial_node)
+
+        for from_state in self.states:
+            edges = self.transitions[from_state]
+            from_node = get_name(from_state)
+            shape = 'doublecircle' if from_state in self.final_states else 'circle'
+            graph.node(from_node, shape=shape)
+
+            inverted_edges = defaultdict(set)
+            for symbol, to_state in edges.items():
+                inverted_edges[to_state].add(symbol)
+
+            for to_state, symbol in inverted_edges.items():
+                edge_label = ', '.join(sorted(symbol))
+                graph.edge(from_node, get_name(to_state), label=edge_label)
+
         return graph
+
+    def _ipython_display_(self):
+        """
+            Display the graph associated with this DFA in Jupyter Notebook
+        """
+        from IPython.display import display
+
+        return display(self.to_graph())

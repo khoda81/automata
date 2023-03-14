@@ -8,5 +8,6 @@ networkx==2.6.2
 nose2==0.12.0
 pycodestyle==2.9.1
 pydot==1.4.2
+graphviz==0.20.1
 pyflakes==2.5.0
 pyparsing==3.0.9
