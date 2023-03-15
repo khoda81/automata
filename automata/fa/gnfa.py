@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Classes and methods for working with generalized non-deterministic finite automata."""
 
+from collections import defaultdict
 from itertools import product
+from typing import Iterable
 
 from frozendict import frozendict
 from pydot import Dot, Edge, Node
@@ -293,14 +295,14 @@ class GNFA(nfa.NFA):
         # adding edges
         for from_state, lookup in self.transitions.items():
             for to_state, to_label in lookup.items():  # pragma: no branch
-                if to_label is None and show_None:
+                if to_label is not None:
                     to_label = "ø"
                     graph.add_edge(Edge(
                         nodes[from_state],
                         nodes[to_state],
                         label=to_label
                     ))
-                elif to_label is not None:
+                elif show_None:
                     graph.add_edge(Edge(
                         nodes[from_state],
                         nodes[to_state],
@@ -308,4 +310,31 @@ class GNFA(nfa.NFA):
                     ))
         if path:
             graph.write_png(path)
+        return graph
+
+    def to_graph(self, engine='dot', rankdir='LR'):
+        """
+        Creates the graph associated with this GNFA
+        """
+        import graphviz
+        graph = graphviz.Digraph(engine=engine)
+        graph.attr(rankdir=rankdir)
+
+        initial_node = self.get_state_name(self.initial_state)
+        null_node = ""
+        graph.node(null_node, shape='none', width='0', height='0')
+        graph.edge(null_node, initial_node)
+
+        for from_state in self.states:
+            from_node = self.get_state_name(from_state)
+            shape = 'doublecircle' if from_state == self.final_state else 'circle'
+            graph.node(from_node, shape=shape)
+            if from_state not in self.transitions:
+                continue
+
+            for to_state, symbol in self.transitions[from_state].items():
+                if symbol is not None:
+                    label = "ε" if symbol == "" else str(symbol)
+                    graph.edge(from_node, self.get_state_name(to_state), label=label)
+
         return graph

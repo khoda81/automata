@@ -716,36 +716,20 @@ class NFA(fa.FA):
 
     def to_graph(self, engine='dot', rankdir='LR'):
         """
-            Creates the graph associated with this DFA
+        Creates the graph associated with this NFA
         """
         import graphviz
         graph = graphviz.Digraph(engine=engine)
         graph.attr(rankdir=rankdir)
 
-        def get_name(state):
-            if isinstance(state, str):
-                if state == "":
-                    return "λ"
-
-                return state
-
-            if isinstance(state, Iterable):
-                inner = ", ".join(map(get_name, sorted(state)))
-                if isinstance(state, (set, frozenset)):
-                    return '{' + inner + '}'
-
-                return '[' + inner + ']'
-
-            return repr(state)
-
-        initial_node = get_name(self.initial_state)
+        initial_node = self.get_state_name(self.initial_state)
         null_node = ""
         graph.node(null_node, shape='none', width='0', height='0')
         graph.edge(null_node, initial_node)
 
         for from_state in self.states:
             edges = self.transitions[from_state]
-            from_node = get_name(from_state)
+            from_node = self.get_state_name(from_state)
             shape = 'doublecircle' if from_state in self.final_states else 'circle'
             graph.node(from_node, shape=shape)
 
@@ -756,17 +740,9 @@ class NFA(fa.FA):
 
             for to_state, symbol in inverted_edges.items():
                 edge_label = ', '.join(sorted(symbol))
-                graph.edge(from_node, get_name(to_state), label=edge_label)
+                graph.edge(from_node, self.get_state_name(to_state), label=edge_label)
 
         return graph
-
-    def _ipython_display_(self):
-        """
-            Display the graph associated with this DFA in Jupyter Notebook
-        """
-        from IPython.display import display
-
-        return display(self.to_graph())
 
     @staticmethod
     def _load_new_transition_dict(state_map_dict,
